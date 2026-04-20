@@ -11,14 +11,15 @@
    Replace ALL values below with your own
    from: console.firebase.google.com
 ────────────────────────────────────────── */
-const firebaseConfig = {
-  apiKey:            "REPLACE_WITH_YOUR_API_KEY",
-  authDomain:        "REPLACE_WITH_YOUR_AUTH_DOMAIN",
-  projectId:         "REPLACE_WITH_YOUR_PROJECT_ID",
-  storageBucket:     "REPLACE_WITH_YOUR_STORAGE_BUCKET",
-  messagingSenderId: "REPLACE_WITH_YOUR_MESSAGING_SENDER_ID",
-  appId:             "REPLACE_WITH_YOUR_APP_ID"
-};
+ const firebaseConfig = {
+    apiKey: "AIzaSyABWhhkR420rV5xg2ADwj3_ugV8sRk-g2k",
+    authDomain: "constructpro-974ff.firebaseapp.com",
+    projectId: "constructpro-974ff",
+    storageBucket: "constructpro-974ff.firebasestorage.app",
+    messagingSenderId: "814618715485",
+    appId: "1:814618715485:web:f3e5faad466beee407f4b4",
+    measurementId: "G-NXH6V7LE25"
+  };
 
 /* ──────────────────────────────────────────
    SITE SETTINGS  (change if needed)
