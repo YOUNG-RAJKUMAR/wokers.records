@@ -165,7 +165,6 @@ function fmtNepaliDate(str) {
   if (!str) return "—";
   const [y, m, d] = str.split('-').map(Number);
   const monthName = BS_MONTH_NAMES[m - 1];
-  // Convert numbers to Devanagari (optional)
   const devanagariDigits = ['०','१','२','३','४','५','६','७','८','९'];
   const toDevanagari = num => String(num).split('').map(ch => devanagariDigits[ch] || ch).join('');
   return `${toDevanagari(y)} ${monthName} ${toDevanagari(d)}`;
@@ -209,7 +208,6 @@ function getBSWeekday(nepaliStr) {
   const greg = nepaliToGregorian(nepaliStr);
   return greg.getDay(); // 0 Sunday
 }
-
 /* ══════════════════════════════════════════
    5. LEGACY GREGORIAN UTILS (still used for storage queries)
 ══════════════════════════════════════════ */
