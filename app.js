@@ -2,6 +2,7 @@
    CONSTRUCTPRO — app.js
    Construction Workforce Management
    Features: Nepali Date (BS), Calendar View, Combined Money Given
+   Fixed: Attendance saving, Firestore error logging
 ═══════════════════════════════════════════════════════════════ */
 
 const firebaseConfig = {
@@ -35,15 +36,15 @@ let modalSubmitHandler   = null;
 let workerDetailMonth;
 
 /* ══════════════════════════════════════════
-   NEPALI DATE UTILITIES (Corrected)
+   NEPALI DATE UTILITIES (Corrected reference)
+   2026-04-21 Gregorian = 2083-01-08 BS
 ══════════════════════════════════════════ */
 const BS_DAYS_IN_MONTH = [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30];
 const BS_MONTH_NAMES = ["बैशाख", "जेठ", "असार", "साउन", "भदौ", "असोज", "कार्तिक", "मंसिर", "पौष", "माघ", "फागुन", "चैत"];
 
-// Corrected reference: 2026-04-21 = 2083-01-08
-const REF_GREG = new Date(2026, 3, 21); // April 21, 2026
+const REF_GREG = new Date(2026, 3, 21); // April 21, 2026 (month 0-indexed)
 const REF_BS_YEAR = 2083;
-const REF_BS_MONTH = 1;
+const REF_BS_MONTH = 1;   // Baishakh
 const REF_BS_DAY = 8;
 
 function gregorianToNepaliStr(date) {
@@ -216,10 +217,19 @@ async function getRecords(workerId=null,startDate=null,endDate=null){
   let q=recordsCol(); if(workerId) q=q.where("workerId","==",workerId); if(startDate) q=q.where("date",">=",startDate); if(endDate) q=q.where("date","<=",endDate);
   const snap=await q.get(); return snap.docs.map(d=>({id:d.id,...d.data()}));
 }
-async function upsertRecord(data){ const docId=`${data.date}_${data.workerId}`; await recordsCol().doc(docId).set(data,{merge:true}); }
+async function upsertRecord(data){
+  try {
+    const docId = `${data.date}_${data.workerId}`;
+    await recordsCol().doc(docId).set(data, { merge: true });
+    console.log("Record saved:", docId);
+  } catch (e) {
+    console.error("Failed to save record:", data, e);
+    throw e;
+  }
+}
 
 /* ══════════════════════════════════════════
-   CALCULATIONS (Money Given = Advance + Expense combined)
+   CALCULATIONS (Money Given combined)
 ══════════════════════════════════════════ */
 function calcSummary(records, wageRate){
   let daysWorked=0, moneyGiven=0, leaveDays=0, absentDays=0;
@@ -423,7 +433,7 @@ async function confirmDeleteWorker(worker){
 }
 
 /* ══════════════════════════════════════════
-   ATTENDANCE PAGE (combined Money Given)
+   ATTENDANCE PAGE (combined Money Given, robust saving)
 ══════════════════════════════════════════ */
 async function renderAttendancePage(){
   const el=document.getElementById("page-attendance");
@@ -487,14 +497,31 @@ async function saveAttendance(){
   try{
     const promises=[];
     for(const [workerId,s] of Object.entries(attendanceState)){
-      if(s.attendance) promises.push(upsertRecord({ workerId, date:gregDate, attendance:s.attendance, moneyGiven:s.moneyGiven||0, notes:s.notes||"" }));
+      if(s.attendance){
+        const recordData = { workerId, date:gregDate, attendance:s.attendance, moneyGiven:s.moneyGiven||0, notes:s.notes||"" };
+        console.log("Saving record:", recordData);
+        promises.push(upsertRecord(recordData));
+      }
     }
-    await Promise.all(promises);
+    if(promises.length===0){
+      statusEl.textContent="No attendance selected to save."; statusEl.className="save-status error";
+      showToast("Please select attendance for at least one worker.","error");
+      return;
+    }
+    const results = await Promise.allSettled(promises);
+    const failed = results.filter(r=>r.status==="rejected");
+    if(failed.length>0){
+      console.error("Failed records:", failed);
+      throw new Error(`${failed.length} record(s) failed. Check console.`);
+    }
     statusEl.textContent=`✓ ${promises.length} record(s) saved`; statusEl.className="save-status saved";
     showToast("Attendance saved!");
     setTimeout(()=>{ if(statusEl){ statusEl.textContent=""; statusEl.className="save-status"; } },4000);
-  }catch(e){ statusEl.textContent="Error saving!"; statusEl.className="save-status error"; showToast("Error: "+e.message,"error"); }
-  finally{ saveBtn.disabled=false; }
+  }catch(e){
+    statusEl.textContent=`Error: ${e.message}`; statusEl.className="save-status error";
+    showToast("Save failed: "+e.message,"error");
+    console.error("Save error:", e);
+  }finally{ saveBtn.disabled=false; }
 }
 
 /* ══════════════════════════════════════════
