@@ -1,7 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════
    CONSTRUCTPRO — app.js
-   Construction Workforce Management
-   Features: Nepali Date (BS), Calendar View, Combined Money Given
    Fixed: Attendance saving, Firestore error logging
 ═══════════════════════════════════════════════════════════════ */
 
@@ -36,22 +34,19 @@ let modalSubmitHandler   = null;
 let workerDetailMonth;
 
 /* ══════════════════════════════════════════
-   NEPALI DATE UTILITIES (Corrected reference)
-   2026-04-21 Gregorian = 2083-01-08 BS
+   NEPALI DATE UTILITIES (Corrected)
 ══════════════════════════════════════════ */
 const BS_DAYS_IN_MONTH = [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30];
 const BS_MONTH_NAMES = ["बैशाख", "जेठ", "असार", "साउन", "भदौ", "असोज", "कार्तिक", "मंसिर", "पौष", "माघ", "फागुन", "चैत"];
-
-const REF_GREG = new Date(2026, 3, 21); // April 21, 2026 (month 0-indexed)
+const REF_GREG = new Date(2026, 3, 21); // April 21, 2026
 const REF_BS_YEAR = 2083;
-const REF_BS_MONTH = 1;   // Baishakh
+const REF_BS_MONTH = 1;
 const REF_BS_DAY = 8;
 
 function gregorianToNepaliStr(date) {
-  const greg = new Date(date);
-  greg.setHours(0, 0, 0, 0);
-  const diffDays = Math.floor((greg - REF_GREG) / (1000 * 60 * 60 * 24));
-  let bsYear = REF_BS_YEAR, bsMonth = REF_BS_MONTH - 1, bsDay = REF_BS_DAY;
+  const greg = new Date(date); greg.setHours(0,0,0,0);
+  const diffDays = Math.floor((greg - REF_GREG) / (1000*60*60*24));
+  let bsYear = REF_BS_YEAR, bsMonth = REF_BS_MONTH-1, bsDay = REF_BS_DAY;
   let remaining = diffDays;
   if (remaining >= 0) {
     while (remaining > 0) {
@@ -66,93 +61,71 @@ function gregorianToNepaliStr(date) {
       else { remaining -= bsDay; bsMonth--; if (bsMonth < 0) { bsMonth = 11; bsYear--; } bsDay = BS_DAYS_IN_MONTH[bsMonth]; }
     }
   }
-  return `${bsYear}-${String(bsMonth + 1).padStart(2, '0')}-${String(bsDay).padStart(2, '0')}`;
+  return `${bsYear}-${String(bsMonth+1).padStart(2,'0')}-${String(bsDay).padStart(2,'0')}`;
 }
-
 function nepaliToGregorian(nepaliStr) {
-  const [y, m, d] = nepaliStr.split('-').map(Number);
-  let bsYear = REF_BS_YEAR, bsMonth = REF_BS_MONTH - 1, bsDay = REF_BS_DAY;
-  let totalDays = 0;
+  const [y,m,d] = nepaliStr.split('-').map(Number);
+  let bsYear = REF_BS_YEAR, bsMonth = REF_BS_MONTH-1, bsDay = REF_BS_DAY, totalDays = 0;
   if (y > REF_BS_YEAR || (y === REF_BS_YEAR && (m > REF_BS_MONTH || (m === REF_BS_MONTH && d > REF_BS_DAY)))) {
-    while (bsYear < y || (bsYear === y && bsMonth < m - 1) || (bsYear === y && bsMonth === m - 1 && bsDay < d)) {
+    while (bsYear < y || (bsYear === y && bsMonth < m-1) || (bsYear === y && bsMonth === m-1 && bsDay < d)) {
       totalDays++; bsDay++;
       if (bsDay > BS_DAYS_IN_MONTH[bsMonth]) { bsDay = 1; bsMonth++; if (bsMonth >= 12) { bsMonth = 0; bsYear++; } }
     }
     const res = new Date(REF_GREG); res.setDate(REF_GREG.getDate() + totalDays); return res;
   } else {
-    while (bsYear > y || (bsYear === y && bsMonth > m - 1) || (bsYear === y && bsMonth === m - 1 && bsDay > d)) {
+    while (bsYear > y || (bsYear === y && bsMonth > m-1) || (bsYear === y && bsMonth === m-1 && bsDay > d)) {
       totalDays--; bsDay--;
       if (bsDay < 1) { bsMonth--; if (bsMonth < 0) { bsMonth = 11; bsYear--; } bsDay = BS_DAYS_IN_MONTH[bsMonth]; }
     }
     const res = new Date(REF_GREG); res.setDate(REF_GREG.getDate() + totalDays); return res;
   }
 }
-
 function fmtNepaliDate(str) {
   if (!str) return "—";
-  const [y, m, d] = str.split('-').map(Number);
+  const [y,m,d] = str.split('-').map(Number);
   const dev = ['०','१','२','३','४','५','६','७','८','९'];
   const toDev = n => String(n).split('').map(c => dev[c]||c).join('');
   return `${toDev(y)} ${BS_MONTH_NAMES[m-1]} ${toDev(d)}`;
 }
-
 function fmtNepaliMonth(ym) {
-  const [y, m] = ym.split('-').map(Number);
+  const [y,m] = ym.split('-').map(Number);
   const dev = ['०','१','२','३','४','५','६','७','८','९'];
   const toDev = n => String(n).split('').map(c => dev[c]||c).join('');
   return `${toDev(y)} ${BS_MONTH_NAMES[m-1]}`;
 }
-
 function shiftNepaliMonth(ym, delta) {
-  let [y, m] = ym.split('-').map(Number);
-  m += delta;
-  while (m > 12) { m -= 12; y++; }
-  while (m < 1)  { m += 12; y--; }
+  let [y,m] = ym.split('-').map(Number); m += delta;
+  while (m > 12) { m -= 12; y++; } while (m < 1) { m += 12; y--; }
   return `${y}-${String(m).padStart(2,'0')}`;
 }
-
 function nepaliMonthRange(ym) {
-  const [y, m] = ym.split('-').map(Number);
+  const [y,m] = ym.split('-').map(Number);
   const startStr = `${y}-${String(m).padStart(2,'0')}-01`;
   const endDay = BS_DAYS_IN_MONTH[m-1];
   const endStr = `${y}-${String(m).padStart(2,'0')}-${String(endDay).padStart(2,'0')}`;
-  return {
-    start: nepaliToGregorian(startStr).toISOString().slice(0,10),
-    end:   nepaliToGregorian(endStr).toISOString().slice(0,10),
-    y, m
-  };
+  return { start: nepaliToGregorian(startStr).toISOString().slice(0,10), end: nepaliToGregorian(endStr).toISOString().slice(0,10), y, m };
 }
-
 function todayNepaliStr() { return gregorianToNepaliStr(new Date()); }
 function getBSWeekday(bsStr) { return nepaliToGregorian(bsStr).getDay(); }
 
-// Initialize state after utils
 currentAttDate     = gregorianToNepaliStr(new Date());
-currentReportMonth = gregorianToNepaliStr(new Date()).slice(0, 7);
-workerDetailMonth  = gregorianToNepaliStr(new Date()).slice(0, 7);
+currentReportMonth = gregorianToNepaliStr(new Date()).slice(0,7);
+workerDetailMonth  = gregorianToNepaliStr(new Date()).slice(0,7);
 
 /* ══════════════════════════════════════════
-   LEGACY GREGORIAN UTILS
+   UTILS
 ══════════════════════════════════════════ */
 function todayStr() { return new Date().toISOString().slice(0,10); }
 function fmtDate(str) { return fmtNepaliDate(gregorianToNepaliStr(new Date(str + "T00:00:00"))); }
 function fmtMoney(n) { return CURRENCY + " " + (Number(n)||0).toLocaleString("en-IN", {maximumFractionDigits:0}); }
-function getInitials(name) {
-  if (!name) return "?";
-  const p = name.trim().split(/\s+/);
-  return p.length===1 ? p[0].slice(0,2).toUpperCase() : (p[0][0]+p[p.length-1][0]).toUpperCase();
-}
+function getInitials(name) { if (!name) return "?"; const p = name.trim().split(/\s+/); return p.length===1 ? p[0].slice(0,2).toUpperCase() : (p[0][0]+p[p.length-1][0]).toUpperCase(); }
 const AVATAR_COLORS = ["#5b7cfa","#34d399","#fbbf24","#f87171","#a78bfa","#38bdf8","#fb923c","#2dd4bf","#e879f9"];
-function avatarColor(n){let h=0;for(let c of n||"")h=(h*31+c.charCodeAt(0))|0;return AVATAR_COLORS[Math.abs(h)%AVATAR_COLORS.length];}
-function showToast(msg,type="success"){
-  const el=document.createElement("div"); el.className=`toast ${type}`; el.textContent=msg;
-  document.getElementById("toast-container").appendChild(el);
-  setTimeout(()=>el.remove(),3500);
-}
+function avatarColor(n){ let h=0; for(let c of n||"") h=(h*31+c.charCodeAt(0))|0; return AVATAR_COLORS[Math.abs(h)%AVATAR_COLORS.length]; }
+function showToast(msg,type="success"){ const el=document.createElement("div"); el.className=`toast ${type}`; el.textContent=msg; document.getElementById("toast-container").appendChild(el); setTimeout(()=>el.remove(),3500); }
 function setLoading(id){ const el=document.getElementById(id); if(el) el.innerHTML=`<div class="loading"><div class="spinner"></div><div>Loading…</div></div>`; }
 
 /* ══════════════════════════════════════════
-   AUTH & NAVIGATION
+   AUTH
 ══════════════════════════════════════════ */
 document.getElementById("btn-google-login").addEventListener("click", async ()=>{
   try{ await auth.signInWithPopup(provider); }catch(e){ showToast("Login failed: "+e.message,"error"); }
@@ -175,12 +148,13 @@ auth.onAuthStateChanged(user=>{
   }
 });
 
+/* ══════════════════════════════════════════
+   NAVIGATION
+══════════════════════════════════════════ */
 document.querySelectorAll(".nav-link").forEach(el=> el.addEventListener("click", e=>{ e.preventDefault(); navigateTo(el.dataset.page); }));
 document.getElementById("btn-menu").addEventListener("click", ()=> document.getElementById("sidebar").classList.toggle("open"));
 document.getElementById("content").addEventListener("click", ()=> document.getElementById("sidebar").classList.remove("open"));
-
 const PAGE_TITLES={ dashboard:"Dashboard", workers:"Workers", "worker-detail":"Worker Profile", attendance:"Attendance", reports:"Reports" };
-
 function navigateTo(page, data=null){
   document.querySelectorAll(".page").forEach(p=>p.style.display="none");
   document.querySelectorAll(".nav-link").forEach(l=>l.classList.remove("active"));
@@ -197,7 +171,7 @@ function navigateTo(page, data=null){
 }
 
 /* ══════════════════════════════════════════
-   DATA INIT & CRUD
+   FIRESTORE HELPERS (with safety checks)
 ══════════════════════════════════════════ */
 function workersCol(){ return db.collection("users").doc(currentUser.uid).collection("workers"); }
 function recordsCol(){ return db.collection("users").doc(currentUser.uid).collection("records"); }
@@ -218,18 +192,26 @@ async function getRecords(workerId=null,startDate=null,endDate=null){
   const snap=await q.get(); return snap.docs.map(d=>({id:d.id,...d.data()}));
 }
 async function upsertRecord(data){
+  if (!currentUser || !currentUser.uid) throw new Error("Not authenticated");
+  const docId = `${data.date}_${data.workerId}`;
+  console.log("💾 Saving record:", docId, data);
+  await recordsCol().doc(docId).set(data, { merge: true });
+  console.log("✅ Record saved:", docId);
+}
+async function testFirestoreWrite(){
   try {
-    const docId = `${data.date}_${data.workerId}`;
-    await recordsCol().doc(docId).set(data, { merge: true });
-    console.log("Record saved:", docId);
+    const testDoc = recordsCol().doc("_test_connection");
+    await testDoc.set({ test: true, timestamp: firebase.firestore.FieldValue.serverTimestamp() });
+    showToast("✅ Firestore write successful!", "success");
+    await testDoc.delete();
   } catch (e) {
-    console.error("Failed to save record:", data, e);
-    throw e;
+    showToast("❌ Firestore write failed: " + e.message, "error");
+    console.error(e);
   }
 }
 
 /* ══════════════════════════════════════════
-   CALCULATIONS (Money Given combined)
+   CALCULATIONS
 ══════════════════════════════════════════ */
 function calcSummary(records, wageRate){
   let daysWorked=0, moneyGiven=0, leaveDays=0, absentDays=0;
@@ -246,7 +228,7 @@ function calcSummary(records, wageRate){
 }
 
 /* ══════════════════════════════════════════
-   DASHBOARD (no reminder)
+   DASHBOARD
 ══════════════════════════════════════════ */
 async function renderDashboard(){
   const el=document.getElementById("page-dashboard"); setLoading("page-dashboard");
@@ -281,6 +263,7 @@ async function renderDashboard(){
       <button class="btn btn-primary" onclick="navigateTo('attendance')">📋 Enter Attendance</button>
       <button class="btn btn-secondary" onclick="navigateTo('workers')">👷 Manage Workers</button>
       <button class="btn btn-secondary" onclick="navigateTo('reports')">📈 Monthly Report</button>
+      <button class="btn btn-secondary" onclick="testFirestoreWrite()">🔧 Test Firestore</button>
     </div>
   `;
 }
@@ -316,7 +299,7 @@ function renderWorkersGrid(list){
 }
 
 /* ══════════════════════════════════════════
-   WORKER MODAL (Simplified)
+   WORKER MODAL
 ══════════════════════════════════════════ */
 function openWorkerModal(worker=null){
   const isEdit=!!worker;
@@ -433,7 +416,7 @@ async function confirmDeleteWorker(worker){
 }
 
 /* ══════════════════════════════════════════
-   ATTENDANCE PAGE (combined Money Given, robust saving)
+   ATTENDANCE PAGE (robust saving)
 ══════════════════════════════════════════ */
 async function renderAttendancePage(){
   const el=document.getElementById("page-attendance");
@@ -499,28 +482,27 @@ async function saveAttendance(){
     for(const [workerId,s] of Object.entries(attendanceState)){
       if(s.attendance){
         const recordData = { workerId, date:gregDate, attendance:s.attendance, moneyGiven:s.moneyGiven||0, notes:s.notes||"" };
-        console.log("Saving record:", recordData);
+        console.log("Saving:", recordData);
         promises.push(upsertRecord(recordData));
       }
     }
-    if(promises.length===0){
-      statusEl.textContent="No attendance selected to save."; statusEl.className="save-status error";
-      showToast("Please select attendance for at least one worker.","error");
-      return;
-    }
+    if(promises.length===0){ statusEl.textContent="No attendance selected."; showToast("Select attendance for at least one worker.","error"); return; }
     const results = await Promise.allSettled(promises);
     const failed = results.filter(r=>r.status==="rejected");
     if(failed.length>0){
       console.error("Failed records:", failed);
-      throw new Error(`${failed.length} record(s) failed. Check console.`);
+      statusEl.textContent = `❌ ${failed.length} failed - see console`;
+      showToast(`Failed to save ${failed.length} records. Check console.`,"error");
+    } else {
+      statusEl.textContent=`✓ ${promises.length} record(s) saved`;
+      statusEl.className="save-status saved";
+      showToast("Attendance saved!");
     }
-    statusEl.textContent=`✓ ${promises.length} record(s) saved`; statusEl.className="save-status saved";
-    showToast("Attendance saved!");
     setTimeout(()=>{ if(statusEl){ statusEl.textContent=""; statusEl.className="save-status"; } },4000);
   }catch(e){
     statusEl.textContent=`Error: ${e.message}`; statusEl.className="save-status error";
-    showToast("Save failed: "+e.message,"error");
-    console.error("Save error:", e);
+    showToast("Save error: "+e.message,"error");
+    console.error(e);
   }finally{ saveBtn.disabled=false; }
 }
 
