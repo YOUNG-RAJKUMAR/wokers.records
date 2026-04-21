@@ -455,7 +455,7 @@ async function renderAttendancePage(){
       <button class="btn btn-secondary btn-sm" id="att-today">Today</button>
     </div>
     <div id="att-content"></div>
-    <div class="save-bar" id="att-save-bar" style="display:none"><button class="btn btn-success" id="att-save-btn">💾 Save All Records</button><span class="save-status" id="att-save-status"></span></div>
+    <div class="save-bar" id="att-save-bar" style="display:none"><button class="btn btn-success" id="att-save-btn" onclick="saveAttendance()">💾 Save All Records</button><span class="save-status" id="att-save-status"></span></div>
   `;
   document.getElementById("att-prev").addEventListener("click",()=>shiftAttDate(-1));
   document.getElementById("att-next").addEventListener("click",()=>shiftAttDate(1));
