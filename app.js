@@ -50,8 +50,7 @@ let workerDetailMonth;                  // will be set after date utils
 
 /* ══════════════════════════════════════════
    4. NEPALI DATE UTILITIES (Internal BS Converter)
-   Based on a simple offset from a known reference:
-   2000-01-01 AD = 2056-09-17 BS
+   Reference: 2026-04-21 (Gregorian) = 2083-01-08 (Bikram Sambat)
 ══════════════════════════════════════════ */
 
 // BS month days (non-leap year approximation)
@@ -59,11 +58,11 @@ const BS_DAYS_IN_MONTH = [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30];
 const BS_MONTH_NAMES = ["बैशाख", "जेठ", "असार", "साउन", "भदौ", "असोज", "कार्तिक", "मंसिर", "पौष", "माघ", "फागुन", "चैत"];
 const BS_MONTH_NAMES_EN = ["Baisakh", "Jestha", "Ashad", "Shrawan", "Bhadra", "Ashwin", "Kartik", "Mangsir", "Poush", "Magh", "Falgun", "Chaitra"];
 
-// Reference: 2000-01-01 (Gregorian) = 2056-09-17 (Bikram Sambat)
-const REF_GREG = new Date(2000, 0, 1);
-const REF_BS_YEAR = 2056;
-const REF_BS_MONTH = 9;   // Poush (0-indexed = 8)
-const REF_BS_DAY = 17;
+// ✅ Corrected reference: 2026-04-21 (Gregorian) = 2083-01-08 (BS)
+const REF_GREG = new Date(2026, 3, 21);   // April 21, 2026 (month is 0-indexed)
+const REF_BS_YEAR = 2083;
+const REF_BS_MONTH = 1;   // Baishakh (1-indexed)
+const REF_BS_DAY = 8;
 
 // Convert Gregorian Date to BS string "YYYY-MM-DD"
 function gregorianToNepaliStr(date) {
@@ -93,7 +92,6 @@ function gregorianToNepaliStr(date) {
       }
     }
   } else {
-    // past dates (negative diff)
     remaining = -remaining;
     while (remaining > 0) {
       if (bsDay - remaining >= 1) {
@@ -122,9 +120,7 @@ function nepaliToGregorian(nepaliStr) {
   let bsDay = REF_BS_DAY;
   let totalDays = 0;
   
-  // Calculate days from reference to target BS date
   if (y > REF_BS_YEAR || (y === REF_BS_YEAR && (m > REF_BS_MONTH || (m === REF_BS_MONTH && d > REF_BS_DAY)))) {
-    // forward
     while (bsYear < y || (bsYear === y && bsMonth < m - 1) || (bsYear === y && bsMonth === m - 1 && bsDay < d)) {
       totalDays++;
       bsDay++;
@@ -141,7 +137,6 @@ function nepaliToGregorian(nepaliStr) {
     result.setDate(REF_GREG.getDate() + totalDays);
     return result;
   } else {
-    // backward
     while (bsYear > y || (bsYear === y && bsMonth > m - 1) || (bsYear === y && bsMonth === m - 1 && bsDay > d)) {
       totalDays--;
       bsDay--;
