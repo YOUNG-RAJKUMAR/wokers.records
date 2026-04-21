@@ -4,6 +4,7 @@
    ─────────────────────────────────────────────────────────────
    Stack: Vanilla JS + Firebase (Auth + Firestore) — FREE FOREVER
    Deploy: GitHub Pages — zero build step
+   Features: Nepali Date (Bikram Sambat), Calendar View, Missing Record Reminders
 ═══════════════════════════════════════════════════════════════ */
 
 /* ──────────────────────────────────────────
@@ -41,23 +42,75 @@ let currentUser          = null;
 let workers              = [];          // cached worker list
 let currentPage          = "dashboard";
 let workerDetailId       = null;
-let currentAttDate       = todayStr();  // YYYY-MM-DD
-let currentReportMonth   = new Date().toISOString().slice(0, 7); // YYYY-MM
+let currentAttDate       = gregorianToNepaliStr(new Date());  // store as Nepali string YYYY-MM-DD (BS)
+let currentReportMonth   = gregorianToNepaliStr(new Date()).slice(0, 7); // Nepali YYYY-MM
 let attendanceState      = {};          // { wid: {attendance,advance,expense,notes} }
 let modalSubmitHandler   = null;
-let workerDetailMonth    = new Date().toISOString().slice(0, 7);
+let workerDetailMonth    = gregorianToNepaliStr(new Date()).slice(0, 7); // Nepali YYYY-MM
 
 /* ══════════════════════════════════════════
-   4. UTILITIES
+   4. NEPALI DATE UTILITIES (using NepaliDate from CDN)
+══════════════════════════════════════════ */
+// Convert Gregorian Date to Nepali Date string (YYYY-MM-DD)
+function gregorianToNepaliStr(date) {
+  const d = new NepaliDate(date);
+  return `${d.getYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// Convert Nepali Date string (YYYY-MM-DD) to Gregorian Date object
+function nepaliToGregorian(nepaliStr) {
+  const [y, m, d] = nepaliStr.split('-').map(Number);
+  return new NepaliDate(y, m - 1, d).toJsDate();
+}
+
+// Format Nepali date for display (e.g., २०८३-०१-१५ or use Devanagari numerals)
+function fmtNepaliDate(str) {
+  if (!str) return "—";
+  const [y, m, d] = str.split('-').map(Number);
+  const nepDate = new NepaliDate(y, m - 1, d);
+  return nepDate.format('YYYY MMMM DD', 'np'); // e.g., "२०८० बैशाख १५"
+}
+
+// Format Nepali month label (YYYY MMMM)
+function fmtNepaliMonth(ym) {
+  const [y, m] = ym.split('-').map(Number);
+  const nepDate = new NepaliDate(y, m - 1, 1);
+  return nepDate.format('YYYY MMMM', 'np');
+}
+
+// Shift Nepali month by delta
+function shiftNepaliMonth(ym, delta) {
+  const [y, m] = ym.split('-').map(Number);
+  const nepDate = new NepaliDate(y, m - 1, 1);
+  nepDate.setMonth(nepDate.getMonth() + delta);
+  return `${nepDate.getYear()}-${String(nepDate.getMonth() + 1).padStart(2, '0')}`;
+}
+
+// Get Nepali month range (start and end Gregorian dates for Firestore queries)
+function nepaliMonthRange(ym) {
+  const [y, m] = ym.split('-').map(Number);
+  const startNep = new NepaliDate(y, m - 1, 1);
+  const endNep = new NepaliDate(y, m - 1, startNep.getDaysInMonth());
+  const startGreg = startNep.toJsDate().toISOString().slice(0, 10);
+  const endGreg = endNep.toJsDate().toISOString().slice(0, 10);
+  return { start: startGreg, end: endGreg, y, m };
+}
+
+// Get today's Nepali date string
+function todayNepaliStr() {
+  return gregorianToNepaliStr(new Date());
+}
+
+/* ══════════════════════════════════════════
+   5. LEGACY GREGORIAN UTILS (still used for storage queries)
 ══════════════════════════════════════════ */
 function todayStr() {
   return new Date().toISOString().slice(0, 10);
 }
 
 function fmtDate(str) {
-  if (!str) return "—";
-  const d = new Date(str + "T00:00:00");
-  return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+  // Display Nepali date for UI
+  return fmtNepaliDate(gregorianToNepaliStr(new Date(str + "T00:00:00")));
 }
 
 function fmtMoney(n) {
@@ -97,30 +150,8 @@ function setLoading(containerId) {
   if (el) el.innerHTML = `<div class="loading"><div class="spinner"></div><div>Loading…</div></div>`;
 }
 
-function daysInMonth(year, month) {
-  return new Date(year, month, 0).getDate();
-}
-
-function monthRange(ym) {
-  const [y, m] = ym.split("-").map(Number);
-  const start = `${ym}-01`;
-  const end   = `${ym}-${String(daysInMonth(y, m)).padStart(2, "0")}`;
-  return { start, end, y, m };
-}
-
-function shiftMonth(ym, delta) {
-  const [y, m] = ym.split("-").map(Number);
-  const d = new Date(y, m - 1 + delta, 1);
-  return d.toISOString().slice(0, 7);
-}
-
-function monthLabel(ym) {
-  const [y, m] = ym.split("-").map(Number);
-  return new Date(y, m - 1, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
-}
-
 /* ══════════════════════════════════════════
-   5. AUTH
+   6. AUTH
 ══════════════════════════════════════════ */
 document.getElementById("btn-google-login").addEventListener("click", async () => {
   try {
@@ -160,7 +191,7 @@ auth.onAuthStateChanged(user => {
 });
 
 /* ══════════════════════════════════════════
-   6. NAVIGATION
+   7. NAVIGATION
 ══════════════════════════════════════════ */
 document.querySelectorAll(".nav-link").forEach(el => {
   el.addEventListener("click", e => {
@@ -173,7 +204,6 @@ document.getElementById("btn-menu").addEventListener("click", () => {
   document.getElementById("sidebar").classList.toggle("open");
 });
 
-// Close sidebar on content click (mobile)
 document.getElementById("content").addEventListener("click", () => {
   document.getElementById("sidebar").classList.remove("open");
 });
@@ -187,9 +217,7 @@ const PAGE_TITLES = {
 };
 
 function navigateTo(page, data = null) {
-  // Hide all pages
   document.querySelectorAll(".page").forEach(p => (p.style.display = "none"));
-  // Deactivate nav links
   document.querySelectorAll(".nav-link").forEach(l => l.classList.remove("active"));
 
   currentPage = page;
@@ -204,14 +232,13 @@ function navigateTo(page, data = null) {
 
   document.getElementById("sidebar").classList.remove("open");
 
-  // Render the requested page
   if (page === "dashboard") {
     renderDashboard();
   } else if (page === "workers") {
     renderWorkersPage();
   } else if (page === "worker-detail" && data) {
     workerDetailId    = data;
-    workerDetailMonth = new Date().toISOString().slice(0, 7);
+    workerDetailMonth = gregorianToNepaliStr(new Date()).slice(0, 7);
     renderWorkerDetail(data);
   } else if (page === "attendance") {
     renderAttendancePage();
@@ -221,7 +248,7 @@ function navigateTo(page, data = null) {
 }
 
 /* ══════════════════════════════════════════
-   7. DATA INIT
+   8. DATA INIT
 ══════════════════════════════════════════ */
 async function loadInitialData() {
   await loadWorkers();
@@ -229,7 +256,7 @@ async function loadInitialData() {
 }
 
 /* ══════════════════════════════════════════
-   8. WORKERS — CRUD
+   9. WORKERS — CRUD
 ══════════════════════════════════════════ */
 function workersCol() {
   return db.collection("users").doc(currentUser.uid).collection("workers");
@@ -255,14 +282,12 @@ async function upsertWorker(data, id = null) {
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     workers.push({ id: ref.id, ...data });
-    // Sort by name
     workers.sort((a, b) => a.name.localeCompare(b.name));
   }
 }
 
 async function removeWorker(id) {
   await workersCol().doc(id).delete();
-  // Delete all records for this worker (batch)
   const recs = await recordsCol().where("workerId", "==", id).get();
   const BATCH = 400;
   for (let i = 0; i < recs.docs.length; i += BATCH) {
@@ -274,7 +299,7 @@ async function removeWorker(id) {
 }
 
 /* ══════════════════════════════════════════
-   9. RECORDS — CRUD
+   10. RECORDS — CRUD
 ══════════════════════════════════════════ */
 async function getRecords(workerId = null, startDate = null, endDate = null) {
   let q = recordsCol();
@@ -286,13 +311,12 @@ async function getRecords(workerId = null, startDate = null, endDate = null) {
 }
 
 async function upsertRecord(data) {
-  // doc ID = date_workerId  →  natural upsert (one record per worker per day)
   const docId = `${data.date}_${data.workerId}`;
   await recordsCol().doc(docId).set(data, { merge: true });
 }
 
 /* ══════════════════════════════════════════
-   10. CALCULATIONS
+   11. CALCULATIONS
 ══════════════════════════════════════════ */
 function calcSummary(records, wageRate) {
   let daysWorked = 0, advance = 0, expense = 0, leaveDays = 0, absentDays = 0;
@@ -306,24 +330,26 @@ function calcSummary(records, wageRate) {
   }
   const rate       = Number(wageRate) || 0;
   const grossWages = daysWorked * rate;
-  const netPayable = grossWages - advance; // expense money is tracked separately
+  const netPayable = grossWages - advance;
   return { daysWorked, absentDays, leaveDays, advance, expense, grossWages, netPayable };
 }
 
 /* ══════════════════════════════════════════
-   11. DASHBOARD
+   12. DASHBOARD (with missing record reminders)
 ══════════════════════════════════════════ */
 async function renderDashboard() {
   const el = document.getElementById("page-dashboard");
   setLoading("page-dashboard");
 
-  const today     = todayStr();
-  const ym        = today.slice(0, 7);
-  const { start } = monthRange(ym);
+  const todayNep = todayNepaliStr();
+  const todayGreg = nepaliToGregorian(todayNep).toISOString().slice(0, 10);
+  const ymNep = todayNep.slice(0, 7);
+  const { start: startGreg } = nepaliMonthRange(ymNep);
 
+  // Get records for today and this month
   const [todayRecs, monthRecs] = await Promise.all([
-    getRecords(null, today, today),
-    getRecords(null, start, today)
+    getRecords(null, todayGreg, todayGreg),
+    getRecords(null, startGreg, todayGreg)
   ]);
 
   const activeWorkers = workers.filter(w => w.status !== "inactive");
@@ -341,6 +367,20 @@ async function renderDashboard() {
     totalPayable += calcSummary(wRecs, w.wageRate).netPayable;
   }
 
+  // Missing records reminder (last 7 days)
+  const sevenDaysAgoGreg = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const recentRecs = await getRecords(null, sevenDaysAgoGreg, todayGreg);
+  const missingDays = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
+    const gregDate = d.toISOString().slice(0, 10);
+    const nepDateStr = gregorianToNepaliStr(d);
+    const dayRecs = recentRecs.filter(r => r.date === gregDate);
+    if (dayRecs.length < activeWorkers.length) {
+      missingDays.push({ gregDate, nepDateStr, missingCount: activeWorkers.length - dayRecs.length });
+    }
+  }
+
   const attMap = {
     P: ["Present",  "green"], H: ["Half Day", "yellow"],
     A: ["Absent",   "red"],   L: ["On Leave", "blue"]
@@ -349,8 +389,29 @@ async function renderDashboard() {
   el.innerHTML = `
     <div class="page-header">
       <h2>Overview</h2>
-      <span style="color:var(--muted2);font-size:12px">${fmtDate(today)}</span>
+      <span style="color:var(--muted2);font-size:12px">${fmtNepaliDate(todayNep)}</span>
     </div>
+
+    <!-- Missing Records Reminder -->
+    ${missingDays.length > 0 ? `
+      <div class="reminder-card">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <span style="font-size:20px;">⚠️</span>
+          <div style="flex:1">
+            <div style="font-weight:700; margin-bottom:4px;">Missing Attendance Records</div>
+            <div style="color:var(--muted2); font-size:12px;">You have ${missingDays.reduce((a,b)=>a+b.missingCount,0)} missing entries in the last 7 days.</div>
+          </div>
+          <button class="btn btn-sm btn-primary" onclick="fillMissingRecords()">📋 Fill Now</button>
+        </div>
+        <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
+          ${missingDays.map(d => `
+            <span class="badge badge-yellow" style="cursor:pointer;" onclick="navigateToAttendanceDate('${d.gregDate}')">
+              ${fmtNepaliDate(d.nepDateStr)} (${d.missingCount})
+            </span>
+          `).join('')}
+        </div>
+      </div>
+    ` : ''}
 
     <div class="stats-grid">
       <div class="stat-card"><div class="stat-label">Total Workers</div><div class="stat-value blue">${activeWorkers.length}</div></div>
@@ -361,7 +422,7 @@ async function renderDashboard() {
       <div class="stat-card"><div class="stat-label">Net Payable (Month)</div><div class="stat-value blue">${fmtMoney(totalPayable)}</div></div>
     </div>
 
-    <div class="section-title">Today's Attendance — ${fmtDate(today)}</div>
+    <div class="section-title">Today's Attendance — ${fmtNepaliDate(todayNep)}</div>
 
     ${activeWorkers.length === 0
       ? `<div class="empty-state">
@@ -398,8 +459,33 @@ async function renderDashboard() {
   `;
 }
 
+// Helper function to navigate to attendance for a specific Gregorian date
+function navigateToAttendanceDate(gregDate) {
+  currentAttDate = gregorianToNepaliStr(new Date(gregDate + "T00:00:00"));
+  navigateTo('attendance');
+}
+
+// Fill missing records: open attendance page with first missing day
+async function fillMissingRecords() {
+  const todayGreg = todayStr();
+  const sevenDaysAgoGreg = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const recentRecs = await getRecords(null, sevenDaysAgoGreg, todayGreg);
+  const activeWorkers = workers.filter(w => w.status !== "inactive");
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
+    const gregDate = d.toISOString().slice(0, 10);
+    const dayRecs = recentRecs.filter(r => r.date === gregDate);
+    if (dayRecs.length < activeWorkers.length) {
+      currentAttDate = gregorianToNepaliStr(d);
+      navigateTo('attendance');
+      return;
+    }
+  }
+  showToast("All recent days have attendance records!", "success");
+}
+
 /* ══════════════════════════════════════════
-   12. WORKERS PAGE
+   13. WORKERS PAGE
 ══════════════════════════════════════════ */
 function renderWorkersPage() {
   document.getElementById("page-workers").innerHTML = `
@@ -464,14 +550,13 @@ function renderWorkersGrid(list) {
 }
 
 /* ══════════════════════════════════════════
-   13. WORKER MODAL (Add / Edit) — SIMPLIFIED
+   14. WORKER MODAL (Simplified with custom roles)
 ══════════════════════════════════════════ */
 function openWorkerModal(worker = null) {
   const isEdit = !!worker;
   document.getElementById("modal-title").textContent = isEdit ? "Edit Worker" : "Add New Worker";
 
-  const roles = ["Mason","Helper","Carpenter","Electrician","Plumber","Painter",
-                 "Welder","Supervisor","Driver","Security","Foreman","Other"];
+  const roles = ["Head mistiri", "mistiri", "helper"];
 
   document.getElementById("modal-body").innerHTML = `
     <div class="form-group">
@@ -544,11 +629,10 @@ function openWorkerModal(worker = null) {
 }
 
 /* ══════════════════════════════════════════
-   14. MODAL HELPERS
+   15. MODAL HELPERS
 ══════════════════════════════════════════ */
 function openModal() {
   document.getElementById("modal-overlay").style.display = "flex";
-  // Focus first input after render
   setTimeout(() => {
     const first = document.querySelector("#modal-body input");
     if (first) first.focus();
@@ -570,7 +654,7 @@ document.getElementById("modal-overlay").addEventListener("click", e => {
 });
 
 /* ══════════════════════════════════════════
-   15. WORKER DETAIL PAGE
+   16. WORKER DETAIL PAGE (with Calendar View)
 ══════════════════════════════════════════ */
 async function renderWorkerDetail(workerId) {
   const el = document.getElementById("page-worker-detail");
@@ -585,17 +669,31 @@ async function renderWorkerDetail(workerId) {
 async function renderWorkerDetailContent(worker, ym) {
   workerDetailMonth = ym;
   const el   = document.getElementById("page-worker-detail");
-  const { start, end, y, m } = monthRange(ym);
-  const records = await getRecords(worker.id, start, end);
+  const { start: startGreg, end: endGreg, y, m } = nepaliMonthRange(ym);
+  const records = await getRecords(worker.id, startGreg, endGreg);
   const summary = calcSummary(records, worker.wageRate);
-  const prevYM  = shiftMonth(ym, -1);
-  const nextYM  = shiftMonth(ym,  1);
-  const isNow   = ym === new Date().toISOString().slice(0, 7);
+  const prevYM  = shiftNepaliMonth(ym, -1);
+  const nextYM  = shiftNepaliMonth(ym,  1);
+  const isNow   = ym === gregorianToNepaliStr(new Date()).slice(0, 7);
 
   const attMap = {
     P: ["Present","green"], H: ["Half Day","yellow"],
     A: ["Absent", "red"],   L: ["On Leave","blue"]
   };
+
+  // Build calendar data
+  const nepDate = new NepaliDate(y, m-1, 1);
+  const daysInMonth = nepDate.getDaysInMonth();
+  const firstDayWeekday = nepDate.getDay(); // 0=Sunday in NepaliDate? Actually NepaliDate uses 0=Sunday as well
+  const calendarDays = [];
+  // Fill empty cells before first day
+  for (let i = 0; i < firstDayWeekday; i++) calendarDays.push(null);
+  for (let d = 1; d <= daysInMonth; d++) {
+    const nepDateStr = `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const gregDate = new NepaliDate(y, m-1, d).toJsDate().toISOString().slice(0,10);
+    const rec = records.find(r => r.date === gregDate);
+    calendarDays.push({ day: d, nepDateStr, gregDate, attendance: rec?.attendance || null });
+  }
 
   el.innerHTML = `
     <button class="back-btn" onclick="navigateTo('workers')">← Back to Workers</button>
@@ -634,8 +732,35 @@ async function renderWorkerDetailContent(worker, ym) {
     <!-- MONTH NAVIGATOR -->
     <div class="month-nav">
       <button class="date-nav" id="wd-prev">◀ Prev</button>
-      <span class="month-label">${monthLabel(ym)}</span>
+      <span class="month-label">${fmtNepaliMonth(ym)}</span>
       <button class="date-nav" id="wd-next" ${isNow ? 'disabled' : ''}>Next ▶</button>
+    </div>
+
+    <!-- CALENDAR VIEW -->
+    <div class="section-title">Attendance Calendar — ${fmtNepaliMonth(ym)}</div>
+    <div class="calendar-wrap">
+      <div class="calendar-weekdays">
+        <span>आइत</span><span>सोम</span><span>मङ्गल</span><span>बुध</span><span>बिहि</span><span>शुक्र</span><span>शनि</span>
+      </div>
+      <div class="calendar-grid">
+        ${calendarDays.map((item, idx) => {
+          if (item === null) return '<div class="calendar-cell empty"></div>';
+          const att = item.attendance;
+          let badge = '';
+          let bg = '';
+          if (att === 'P') { badge = '✓'; bg = 'var(--green)'; }
+          else if (att === 'H') { badge = '½'; bg = 'var(--yellow)'; }
+          else if (att === 'A') { badge = '✗'; bg = 'var(--red)'; }
+          else if (att === 'L') { badge = 'L'; bg = 'var(--blue)'; }
+          else { badge = '·'; bg = 'var(--muted)'; }
+          return `
+            <div class="calendar-cell" style="background:${bg}20; border-left:3px solid ${bg};" onclick="quickFillAttendance('${worker.id}','${item.gregDate}')">
+              <span class="cell-day">${item.day}</span>
+              <span class="cell-badge" style="color:${bg}">${badge}</span>
+            </div>
+          `;
+        }).join('')}
+      </div>
     </div>
 
     <!-- MONTH SUMMARY STATS -->
@@ -652,7 +777,7 @@ async function renderWorkerDetailContent(worker, ym) {
     </div>
 
     <!-- DAILY RECORDS TABLE -->
-    <div class="section-title">Daily Records — ${monthLabel(ym)}</div>
+    <div class="section-title">Daily Records — ${fmtNepaliMonth(ym)}</div>
 
     ${records.length === 0
       ? `<div class="empty-state">
@@ -670,8 +795,9 @@ async function renderWorkerDetailContent(worker, ym) {
                   .sort((a, b) => b.date.localeCompare(a.date))
                   .map(r => {
                     const [label, color] = attMap[r.attendance] || ["Unknown","gray"];
+                    const nepDate = gregorianToNepaliStr(new Date(r.date + "T00:00:00"));
                     return `<tr>
-                      <td>${fmtDate(r.date)}</td>
+                      <td>${fmtNepaliDate(nepDate)}</td>
                       <td><span class="badge badge-${color}">${label}</span>${r.leaveType && r.leaveType !== "null" ? ` <span style="color:var(--muted2);font-size:11px">(${r.leaveType})</span>` : ""}</td>
                       <td>${r.advance ? fmtMoney(r.advance) : "—"}</td>
                       <td>${r.expense ? fmtMoney(r.expense) : "—"}</td>
@@ -695,6 +821,12 @@ async function renderWorkerDetailContent(worker, ym) {
   if (!isNow) document.getElementById("wd-next").addEventListener("click", () => renderWorkerDetailContent(worker, nextYM));
 }
 
+// Quick fill attendance for a specific date (opens attendance page for that date)
+function quickFillAttendance(workerId, gregDate) {
+  currentAttDate = gregorianToNepaliStr(new Date(gregDate + "T00:00:00"));
+  navigateTo('attendance');
+}
+
 async function confirmDeleteWorker(worker) {
   const ok = await confirm2(`Delete worker "${worker.name}"?\n\nThis will permanently delete all their attendance and records. This cannot be undone.`);
   if (!ok) return;
@@ -708,17 +840,19 @@ async function confirmDeleteWorker(worker) {
 }
 
 /* ══════════════════════════════════════════
-   16. ATTENDANCE PAGE
+   17. ATTENDANCE PAGE (Nepali Date Navigation)
 ══════════════════════════════════════════ */
 async function renderAttendancePage() {
   const el = document.getElementById("page-attendance");
+  const todayNep = todayNepaliStr();
+  const isToday = currentAttDate === todayNep;
   el.innerHTML = `
     <div class="page-header"><h2>Daily Attendance Entry</h2></div>
 
     <div class="date-section">
       <button class="date-nav" id="att-prev">◀</button>
-      <input type="date" id="att-date" class="date-input" value="${currentAttDate}">
-      <button class="date-nav" id="att-next" ${currentAttDate >= todayStr() ? "disabled" : ""}>▶</button>
+      <span class="date-input" id="att-date-display">${fmtNepaliDate(currentAttDate)}</span>
+      <button class="date-nav" id="att-next" ${isToday ? "disabled" : ""}>▶</button>
       <button class="btn btn-secondary btn-sm" id="att-today">Today</button>
     </div>
 
@@ -733,31 +867,22 @@ async function renderAttendancePage() {
   document.getElementById("att-prev").addEventListener("click", () => shiftAttDate(-1));
   document.getElementById("att-next").addEventListener("click", () => shiftAttDate(+1));
   document.getElementById("att-today").addEventListener("click", () => {
-    currentAttDate = todayStr();
-    document.getElementById("att-date").value = currentAttDate;
-    loadAttendanceForDate();
-    document.getElementById("att-next").disabled = true;
+    currentAttDate = todayNepaliStr();
+    renderAttendancePage(); // re-render
   });
-  document.getElementById("att-date").addEventListener("change", e => {
-    if (e.target.value > todayStr()) { e.target.value = todayStr(); }
-    currentAttDate = e.target.value;
-    document.getElementById("att-next").disabled = currentAttDate >= todayStr();
-    loadAttendanceForDate();
-  });
-  document.getElementById("att-save-btn").addEventListener("click", saveAttendance);
 
   await loadAttendanceForDate();
 }
 
 function shiftAttDate(delta) {
-  const d = new Date(currentAttDate + "T00:00:00");
-  d.setDate(d.getDate() + delta);
-  const nd = d.toISOString().slice(0, 10);
-  if (nd > todayStr()) return;
-  currentAttDate = nd;
-  document.getElementById("att-date").value = nd;
-  document.getElementById("att-next").disabled = nd >= todayStr();
-  loadAttendanceForDate();
+  const [y, m, d] = currentAttDate.split('-').map(Number);
+  const nepDate = new NepaliDate(y, m-1, d);
+  nepDate.setDate(nepDate.getDate() + delta);
+  const newNepStr = `${nepDate.getYear()}-${String(nepDate.getMonth()+1).padStart(2,'0')}-${String(nepDate.getDate()).padStart(2,'0')}`;
+  const todayNep = todayNepaliStr();
+  if (newNepStr > todayNep) return; // cannot go to future
+  currentAttDate = newNepStr;
+  renderAttendancePage();
 }
 
 async function loadAttendanceForDate() {
@@ -777,8 +902,8 @@ async function loadAttendanceForDate() {
 
   setLoading("att-content");
 
-  // Load existing records for this date
-  const recs = await getRecords(null, currentAttDate, currentAttDate);
+  const gregDate = nepaliToGregorian(currentAttDate).toISOString().slice(0,10);
+  const recs = await getRecords(null, gregDate, gregDate);
   attendanceState = {};
   for (const w of activeWorkers) {
     const rec = recs.find(r => r.workerId === w.id);
@@ -865,13 +990,11 @@ async function loadAttendanceForDate() {
     </div>
   `;
 
-  // Attach click handlers for attendance buttons
   el.querySelectorAll(".att-btn").forEach(btn => {
     btn.addEventListener("click", () => {
       const wid = btn.dataset.wid;
       const val = btn.dataset.val;
       attendanceState[wid].attendance = val;
-      // Update button states in this row
       document.querySelectorAll(`#att-btns-${wid} .att-btn`).forEach(b => {
         b.className = "att-btn" + (b.dataset.val === val ? " sel-" + val : "");
       });
@@ -889,13 +1012,14 @@ async function saveAttendance() {
   statusEl.textContent = "Saving…";
   saveBtn.disabled = true;
 
+  const gregDate = nepaliToGregorian(currentAttDate).toISOString().slice(0,10);
   try {
     const promises = [];
     for (const [workerId, s] of Object.entries(attendanceState)) {
       if (s.attendance) {
         promises.push(upsertRecord({
           workerId,
-          date:       currentAttDate,
+          date:       gregDate,
           attendance: s.attendance,
           advance:    s.advance || 0,
           expense:    s.expense || 0,
@@ -920,39 +1044,33 @@ async function saveAttendance() {
 }
 
 /* ══════════════════════════════════════════
-   17. REPORTS PAGE
+   18. REPORTS PAGE (Nepali Month)
 ══════════════════════════════════════════ */
 async function renderReportsPage() {
   const el = document.getElementById("page-reports");
+  const todayNep = todayNepaliStr();
+  if (!currentReportMonth) currentReportMonth = todayNep.slice(0,7);
+  const isNow = currentReportMonth === todayNep.slice(0,7);
   el.innerHTML = `
     <div class="page-header"><h2>Monthly Report</h2></div>
     <div class="month-nav">
       <button class="date-nav" id="rpt-prev">◀ Prev</button>
-      <span class="month-label" id="rpt-label">${monthLabel(currentReportMonth)}</span>
-      <button class="date-nav" id="rpt-next" ${currentReportMonth >= new Date().toISOString().slice(0,7) ? "disabled" : ""}>Next ▶</button>
+      <span class="month-label" id="rpt-label">${fmtNepaliMonth(currentReportMonth)}</span>
+      <button class="date-nav" id="rpt-next" ${isNow ? "disabled" : ""}>Next ▶</button>
     </div>
     <div id="rpt-content"></div>
   `;
 
   document.getElementById("rpt-prev").addEventListener("click", () => {
-    currentReportMonth = shiftMonth(currentReportMonth, -1);
-    updateReportLabel();
-    loadReportData();
+    currentReportMonth = shiftNepaliMonth(currentReportMonth, -1);
+    renderReportsPage();
   });
   document.getElementById("rpt-next").addEventListener("click", () => {
-    currentReportMonth = shiftMonth(currentReportMonth, +1);
-    updateReportLabel();
-    loadReportData();
+    currentReportMonth = shiftNepaliMonth(currentReportMonth, +1);
+    renderReportsPage();
   });
 
   await loadReportData();
-}
-
-function updateReportLabel() {
-  const lbl  = document.getElementById("rpt-label");
-  const next = document.getElementById("rpt-next");
-  if (lbl)  lbl.textContent = monthLabel(currentReportMonth);
-  if (next) next.disabled   = currentReportMonth >= new Date().toISOString().slice(0, 7);
 }
 
 async function loadReportData() {
@@ -960,8 +1078,8 @@ async function loadReportData() {
   const el = document.getElementById("rpt-content");
   if (!el) return;
 
-  const { start, end } = monthRange(currentReportMonth);
-  const allRecs = await getRecords(null, start, end);
+  const { start: startGreg, end: endGreg } = nepaliMonthRange(currentReportMonth);
+  const allRecs = await getRecords(null, startGreg, endGreg);
 
   if (!workers.length) {
     el.innerHTML = `<div class="empty-state"><span class="empty-icon">📊</span><p>No workers yet.</p></div>`;
@@ -1037,8 +1155,8 @@ async function loadReportData() {
 }
 
 async function exportCSV() {
-  const { start, end } = monthRange(currentReportMonth);
-  const allRecs = await getRecords(null, start, end);
+  const { start: startGreg, end: endGreg } = nepaliMonthRange(currentReportMonth);
+  const allRecs = await getRecords(null, startGreg, endGreg);
 
   const header = "Name,Role,Wage/Day,Days Worked,Absent,Leaves,Gross Wages,Advances,Expenses,Net Payable\n";
   const rows = workers.map(w => {
@@ -1061,7 +1179,7 @@ async function exportCSV() {
 }
 
 /* ══════════════════════════════════════════
-   18. CUSTOM CONFIRM DIALOG
+   19. CUSTOM CONFIRM DIALOG
 ══════════════════════════════════════════ */
 function confirm2(msg) {
   return new Promise(resolve => {
@@ -1086,7 +1204,7 @@ function confirm2(msg) {
 }
 
 /* ══════════════════════════════════════════
-   19. ESCAPE HELPER (XSS prevention)
+   20. ESCAPE HELPER (XSS prevention)
 ══════════════════════════════════════════ */
 function esc(str) {
   if (!str && str !== 0) return "";
