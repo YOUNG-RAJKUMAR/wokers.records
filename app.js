@@ -36,17 +36,17 @@ const db       = firebase.firestore();
 const provider = new firebase.auth.GoogleAuthProvider();
 
 /* ──────────────────────────────────────────
-   3. APP STATE
+   3. APP STATE (declared, values set later)
 ────────────────────────────────────────── */
 let currentUser          = null;
 let workers              = [];          // cached worker list
 let currentPage          = "dashboard";
 let workerDetailId       = null;
-let currentAttDate       = gregorianToNepaliStr(new Date());  // store as Nepali string YYYY-MM-DD (BS)
-let currentReportMonth   = gregorianToNepaliStr(new Date()).slice(0, 7); // Nepali YYYY-MM
+let currentAttDate;                     // will be set after date utils
+let currentReportMonth;                 // will be set after date utils
 let attendanceState      = {};          // { wid: {attendance,advance,expense,notes} }
 let modalSubmitHandler   = null;
-let workerDetailMonth    = gregorianToNepaliStr(new Date()).slice(0, 7); // Nepali YYYY-MM
+let workerDetailMonth;                  // will be set after date utils
 
 /* ══════════════════════════════════════════
    4. NEPALI DATE UTILITIES (Internal BS Converter)
@@ -208,6 +208,12 @@ function getBSWeekday(nepaliStr) {
   const greg = nepaliToGregorian(nepaliStr);
   return greg.getDay(); // 0 Sunday
 }
+
+// ✅ Initialize state values that depend on date utilities
+currentAttDate     = gregorianToNepaliStr(new Date());
+currentReportMonth = gregorianToNepaliStr(new Date()).slice(0, 7);
+workerDetailMonth  = gregorianToNepaliStr(new Date()).slice(0, 7);
+
 /* ══════════════════════════════════════════
    5. LEGACY GREGORIAN UTILS (still used for storage queries)
 ══════════════════════════════════════════ */
