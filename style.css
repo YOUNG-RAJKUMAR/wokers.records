@@ -24,9 +24,6 @@
   --radius-lg:  16px;
 }
 
-/* ═══════════════════════════════════════════
-   RESET
-═══════════════════════════════════════════ */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
@@ -42,9 +39,6 @@ body {
 input, select, textarea, button { font-family: inherit; font-size: inherit; }
 a { text-decoration: none; }
 
-/* ═══════════════════════════════════════════
-   AUTH SCREEN
-═══════════════════════════════════════════ */
 #auth-screen {
   display: flex;
   align-items: center;
@@ -104,15 +98,8 @@ a { text-decoration: none; }
   color: var(--muted);
 }
 
-/* ═══════════════════════════════════════════
-   APP LAYOUT
-═══════════════════════════════════════════ */
-#app {
-  display: flex;
-  height: 100vh;
-}
+#app { display: flex; height: 100vh; }
 
-/* ── SIDEBAR ── */
 #sidebar {
   width: var(--sidebar-w);
   background: var(--surface);
@@ -201,7 +188,6 @@ a { text-decoration: none; }
 }
 .btn-logout:hover { color: var(--red); }
 
-/* ── MAIN ── */
 #main {
   flex: 1;
   display: flex;
@@ -249,9 +235,6 @@ a { text-decoration: none; }
 
 .page { min-height: 100%; }
 
-/* ═══════════════════════════════════════════
-   BUTTONS
-═══════════════════════════════════════════ */
 .btn {
   display: inline-flex;
   align-items: center;
@@ -281,9 +264,6 @@ a { text-decoration: none; }
 
 .btn-sm { padding: 5px 11px; font-size: 12px; border-radius: 6px; }
 
-/* ═══════════════════════════════════════════
-   CARDS
-═══════════════════════════════════════════ */
 .card {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -291,7 +271,6 @@ a { text-decoration: none; }
   padding: 20px;
 }
 
-/* ── STAT CARDS ── */
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
@@ -328,9 +307,6 @@ a { text-decoration: none; }
 .stat-value.blue   { color: var(--accent); }
 .stat-value.purple { color: var(--purple); }
 
-/* ═══════════════════════════════════════════
-   TABLES
-═══════════════════════════════════════════ */
 .table-wrap {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -369,9 +345,6 @@ tfoot td {
   border-top: 2px solid var(--border2);
 }
 
-/* ═══════════════════════════════════════════
-   FORM ELEMENTS
-═══════════════════════════════════════════ */
 .form-group { margin-bottom: 14px; }
 
 .form-label {
@@ -416,7 +389,6 @@ tfoot td {
   gap: 12px;
 }
 
-/* ── SEARCH ── */
 .search-bar {
   background: var(--surface2);
   border: 1px solid var(--border);
@@ -432,9 +404,6 @@ tfoot td {
 .search-bar:focus { border-color: var(--accent); }
 .search-bar::placeholder { color: var(--muted); }
 
-/* ═══════════════════════════════════════════
-   MODAL
-═══════════════════════════════════════════ */
 #modal-overlay {
   position: fixed;
   inset: 0;
@@ -500,7 +469,6 @@ tfoot td {
   flex-shrink: 0;
 }
 
-/* CONFIRM DIALOG */
 #confirm-overlay {
   position: fixed;
   inset: 0;
@@ -536,9 +504,6 @@ tfoot td {
   justify-content: flex-end;
 }
 
-/* ═══════════════════════════════════════════
-   BADGES
-═══════════════════════════════════════════ */
 .badge {
   display: inline-block;
   padding: 2px 9px;
@@ -555,9 +520,6 @@ tfoot td {
 .badge-gray   { background: var(--surface2);       color: var(--muted2); }
 .badge-purple { background: rgba(167,139,250,.15); color: var(--purple); }
 
-/* ═══════════════════════════════════════════
-   TOAST
-═══════════════════════════════════════════ */
 #toast-container {
   position: fixed;
   bottom: 24px;
@@ -591,9 +553,6 @@ tfoot td {
   to   { transform: translateX(0);    opacity: 1; }
 }
 
-/* ═══════════════════════════════════════════
-   PAGE HEADER
-═══════════════════════════════════════════ */
 .page-header {
   display: flex;
   align-items: center;
@@ -609,9 +568,6 @@ tfoot td {
   letter-spacing: -.2px;
 }
 
-/* ═══════════════════════════════════════════
-   SECTION TITLE
-═══════════════════════════════════════════ */
 .section-title {
   font-size: 11px;
   font-weight: 700;
@@ -623,9 +579,6 @@ tfoot td {
 }
 .section-title:first-child { margin-top: 0; }
 
-/* ═══════════════════════════════════════════
-   EMPTY STATE
-═══════════════════════════════════════════ */
 .empty-state {
   text-align: center;
   padding: 56px 24px;
@@ -634,9 +587,6 @@ tfoot td {
 .empty-icon { font-size: 44px; display: block; margin-bottom: 12px; }
 .empty-state p { font-size: 13px; line-height: 1.7; }
 
-/* ═══════════════════════════════════════════
-   LOADING SPINNER
-═══════════════════════════════════════════ */
 .loading {
   text-align: center;
   padding: 48px 20px;
@@ -656,9 +606,6 @@ tfoot td {
 
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* ═══════════════════════════════════════════
-   WORKERS GRID
-═══════════════════════════════════════════ */
 .workers-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
@@ -708,9 +655,6 @@ tfoot td {
   flex-wrap: wrap;
 }
 
-/* ═══════════════════════════════════════════
-   WORKER DETAIL / PROFILE
-═══════════════════════════════════════════ */
 .profile-header {
   display: flex;
   align-items: flex-start;
@@ -778,9 +722,6 @@ tfoot td {
 }
 .info-item span { font-size: 13.5px; }
 
-/* ═══════════════════════════════════════════
-   MONTH NAVIGATOR
-═══════════════════════════════════════════ */
 .month-nav {
   display: flex;
   align-items: center;
@@ -808,9 +749,6 @@ tfoot td {
 .date-nav:hover:not(:disabled) { background: var(--surface3); border-color: var(--border2); }
 .date-nav:disabled { opacity: .4; cursor: not-allowed; }
 
-/* ═══════════════════════════════════════════
-   ATTENDANCE TABLE
-═══════════════════════════════════════════ */
 .att-table-wrap {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -881,9 +819,6 @@ tfoot td {
 .mini-input:focus { border-color: var(--accent); }
 .mini-input::placeholder { color: var(--muted); }
 
-/* ═══════════════════════════════════════════
-   DATE SECTION (Attendance header)
-═══════════════════════════════════════════ */
 .date-section {
   display: flex;
   align-items: center;
@@ -904,9 +839,6 @@ tfoot td {
 }
 .date-input:focus { border-color: var(--accent); }
 
-/* ═══════════════════════════════════════════
-   SAVE BAR
-═══════════════════════════════════════════ */
 .save-bar {
   display: flex;
   align-items: center;
@@ -926,9 +858,6 @@ tfoot td {
 .save-status.saved { color: var(--green); }
 .save-status.error { color: var(--red); }
 
-/* ═══════════════════════════════════════════
-   REPORTS
-═══════════════════════════════════════════ */
 .export-bar {
   margin-top: 16px;
   display: flex;
@@ -937,17 +866,11 @@ tfoot td {
   flex-wrap: wrap;
 }
 
-/* ═══════════════════════════════════════════
-   SCROLLBAR
-═══════════════════════════════════════════ */
 ::-webkit-scrollbar       { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 6px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
 
-/* ═══════════════════════════════════════════
-   RESPONSIVE
-═══════════════════════════════════════════ */
 @media (max-width: 768px) {
   #sidebar {
     position: fixed;
@@ -976,15 +899,6 @@ tfoot td {
   .stats-grid { grid-template-columns: 1fr 1fr; }
   .workers-grid { grid-template-columns: 1fr; }
   .info-grid { grid-template-columns: 1fr 1fr; }
-}
-
-/* Reminder Card */
-.reminder-card {
-  background: var(--surface);
-  border: 1px solid var(--yellow);
-  border-radius: var(--radius);
-  padding: 16px 20px;
-  margin-bottom: 24px;
 }
 
 /* Calendar */
