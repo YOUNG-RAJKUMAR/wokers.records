@@ -49,56 +49,165 @@ let modalSubmitHandler   = null;
 let workerDetailMonth    = gregorianToNepaliStr(new Date()).slice(0, 7); // Nepali YYYY-MM
 
 /* ══════════════════════════════════════════
-   4. NEPALI DATE UTILITIES (using NepaliDate from CDN)
+   4. NEPALI DATE UTILITIES (Internal BS Converter)
+   Based on a simple offset from a known reference:
+   2000-01-01 AD = 2056-09-17 BS
 ══════════════════════════════════════════ */
-// Convert Gregorian Date to Nepali Date string (YYYY-MM-DD)
+
+// BS month days (non-leap year approximation)
+const BS_DAYS_IN_MONTH = [31, 31, 32, 31, 31, 31, 30, 29, 30, 29, 30, 30];
+const BS_MONTH_NAMES = ["बैशाख", "जेठ", "असार", "साउन", "भदौ", "असोज", "कार्तिक", "मंसिर", "पौष", "माघ", "फागुन", "चैत"];
+const BS_MONTH_NAMES_EN = ["Baisakh", "Jestha", "Ashad", "Shrawan", "Bhadra", "Ashwin", "Kartik", "Mangsir", "Poush", "Magh", "Falgun", "Chaitra"];
+
+// Reference: 2000-01-01 (Gregorian) = 2056-09-17 (Bikram Sambat)
+const REF_GREG = new Date(2000, 0, 1);
+const REF_BS_YEAR = 2056;
+const REF_BS_MONTH = 9;   // Poush (0-indexed = 8)
+const REF_BS_DAY = 17;
+
+// Convert Gregorian Date to BS string "YYYY-MM-DD"
 function gregorianToNepaliStr(date) {
-  const d = new NepaliDate(date);
-  return `${d.getYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const greg = new Date(date);
+  greg.setHours(0, 0, 0, 0);
+  const diffDays = Math.floor((greg - REF_GREG) / (1000 * 60 * 60 * 24));
+  
+  let bsYear = REF_BS_YEAR;
+  let bsMonth = REF_BS_MONTH - 1; // 0-indexed
+  let bsDay = REF_BS_DAY;
+  
+  let remaining = diffDays;
+  if (remaining >= 0) {
+    while (remaining > 0) {
+      const daysInCurrentMonth = BS_DAYS_IN_MONTH[bsMonth];
+      if (bsDay + remaining <= daysInCurrentMonth) {
+        bsDay += remaining;
+        remaining = 0;
+      } else {
+        remaining -= (daysInCurrentMonth - bsDay + 1);
+        bsDay = 1;
+        bsMonth++;
+        if (bsMonth >= 12) {
+          bsMonth = 0;
+          bsYear++;
+        }
+      }
+    }
+  } else {
+    // past dates (negative diff)
+    remaining = -remaining;
+    while (remaining > 0) {
+      if (bsDay - remaining >= 1) {
+        bsDay -= remaining;
+        remaining = 0;
+      } else {
+        remaining -= bsDay;
+        bsMonth--;
+        if (bsMonth < 0) {
+          bsMonth = 11;
+          bsYear--;
+        }
+        bsDay = BS_DAYS_IN_MONTH[bsMonth];
+      }
+    }
+  }
+  
+  return `${bsYear}-${String(bsMonth + 1).padStart(2, '0')}-${String(bsDay).padStart(2, '0')}`;
 }
 
-// Convert Nepali Date string (YYYY-MM-DD) to Gregorian Date object
+// Convert BS string "YYYY-MM-DD" to Gregorian Date object
 function nepaliToGregorian(nepaliStr) {
   const [y, m, d] = nepaliStr.split('-').map(Number);
-  return new NepaliDate(y, m - 1, d).toJsDate();
+  let bsYear = REF_BS_YEAR;
+  let bsMonth = REF_BS_MONTH - 1;
+  let bsDay = REF_BS_DAY;
+  let totalDays = 0;
+  
+  // Calculate days from reference to target BS date
+  if (y > REF_BS_YEAR || (y === REF_BS_YEAR && (m > REF_BS_MONTH || (m === REF_BS_MONTH && d > REF_BS_DAY)))) {
+    // forward
+    while (bsYear < y || (bsYear === y && bsMonth < m - 1) || (bsYear === y && bsMonth === m - 1 && bsDay < d)) {
+      totalDays++;
+      bsDay++;
+      if (bsDay > BS_DAYS_IN_MONTH[bsMonth]) {
+        bsDay = 1;
+        bsMonth++;
+        if (bsMonth >= 12) {
+          bsMonth = 0;
+          bsYear++;
+        }
+      }
+    }
+    const result = new Date(REF_GREG);
+    result.setDate(REF_GREG.getDate() + totalDays);
+    return result;
+  } else {
+    // backward
+    while (bsYear > y || (bsYear === y && bsMonth > m - 1) || (bsYear === y && bsMonth === m - 1 && bsDay > d)) {
+      totalDays--;
+      bsDay--;
+      if (bsDay < 1) {
+        bsMonth--;
+        if (bsMonth < 0) {
+          bsMonth = 11;
+          bsYear--;
+        }
+        bsDay = BS_DAYS_IN_MONTH[bsMonth];
+      }
+    }
+    const result = new Date(REF_GREG);
+    result.setDate(REF_GREG.getDate() + totalDays);
+    return result;
+  }
 }
 
-// Format Nepali date for display (e.g., २०८३-०१-१५ or use Devanagari numerals)
+// Format Nepali date for display (e.g., २०८० बैशाख १५)
 function fmtNepaliDate(str) {
   if (!str) return "—";
   const [y, m, d] = str.split('-').map(Number);
-  const nepDate = new NepaliDate(y, m - 1, d);
-  return nepDate.format('YYYY MMMM DD', 'np'); // e.g., "२०८० बैशाख १५"
+  const monthName = BS_MONTH_NAMES[m - 1];
+  // Convert numbers to Devanagari (optional)
+  const devanagariDigits = ['०','१','२','३','४','५','६','७','८','९'];
+  const toDevanagari = num => String(num).split('').map(ch => devanagariDigits[ch] || ch).join('');
+  return `${toDevanagari(y)} ${monthName} ${toDevanagari(d)}`;
 }
 
 // Format Nepali month label (YYYY MMMM)
 function fmtNepaliMonth(ym) {
   const [y, m] = ym.split('-').map(Number);
-  const nepDate = new NepaliDate(y, m - 1, 1);
-  return nepDate.format('YYYY MMMM', 'np');
+  const devanagariDigits = ['०','१','२','३','४','५','६','७','८','९'];
+  const toDevanagari = num => String(num).split('').map(ch => devanagariDigits[ch] || ch).join('');
+  return `${toDevanagari(y)} ${BS_MONTH_NAMES[m-1]}`;
 }
 
 // Shift Nepali month by delta
 function shiftNepaliMonth(ym, delta) {
-  const [y, m] = ym.split('-').map(Number);
-  const nepDate = new NepaliDate(y, m - 1, 1);
-  nepDate.setMonth(nepDate.getMonth() + delta);
-  return `${nepDate.getYear()}-${String(nepDate.getMonth() + 1).padStart(2, '0')}`;
+  let [y, m] = ym.split('-').map(Number);
+  m += delta;
+  while (m > 12) { m -= 12; y++; }
+  while (m < 1)  { m += 12; y--; }
+  return `${y}-${String(m).padStart(2,'0')}`;
 }
 
 // Get Nepali month range (start and end Gregorian dates for Firestore queries)
 function nepaliMonthRange(ym) {
   const [y, m] = ym.split('-').map(Number);
-  const startNep = new NepaliDate(y, m - 1, 1);
-  const endNep = new NepaliDate(y, m - 1, startNep.getDaysInMonth());
-  const startGreg = startNep.toJsDate().toISOString().slice(0, 10);
-  const endGreg = endNep.toJsDate().toISOString().slice(0, 10);
+  const startNepStr = `${y}-${String(m).padStart(2,'0')}-01`;
+  const endDay = BS_DAYS_IN_MONTH[m-1];
+  const endNepStr = `${y}-${String(m).padStart(2,'0')}-${String(endDay).padStart(2,'0')}`;
+  const startGreg = nepaliToGregorian(startNepStr).toISOString().slice(0,10);
+  const endGreg = nepaliToGregorian(endNepStr).toISOString().slice(0,10);
   return { start: startGreg, end: endGreg, y, m };
 }
 
 // Get today's Nepali date string
 function todayNepaliStr() {
   return gregorianToNepaliStr(new Date());
+}
+
+// Get weekday of BS date (0 = Sunday, 1 = Monday, ...) using Gregorian conversion
+function getBSWeekday(nepaliStr) {
+  const greg = nepaliToGregorian(nepaliStr);
+  return greg.getDay(); // 0 Sunday
 }
 
 /* ══════════════════════════════════════════
@@ -681,16 +790,16 @@ async function renderWorkerDetailContent(worker, ym) {
     A: ["Absent", "red"],   L: ["On Leave","blue"]
   };
 
-  // Build calendar data
-  const nepDate = new NepaliDate(y, m-1, 1);
-  const daysInMonth = nepDate.getDaysInMonth();
-  const firstDayWeekday = nepDate.getDay(); // 0=Sunday in NepaliDate? Actually NepaliDate uses 0=Sunday as well
+  // Build calendar data using internal converter
+  const daysInMonth = BS_DAYS_IN_MONTH[m-1];
+  const firstDayStr = `${y}-${String(m).padStart(2,'0')}-01`;
+  const firstDayWeekday = getBSWeekday(firstDayStr);
   const calendarDays = [];
   // Fill empty cells before first day
   for (let i = 0; i < firstDayWeekday; i++) calendarDays.push(null);
   for (let d = 1; d <= daysInMonth; d++) {
     const nepDateStr = `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const gregDate = new NepaliDate(y, m-1, d).toJsDate().toISOString().slice(0,10);
+    const gregDate = nepaliToGregorian(nepDateStr).toISOString().slice(0,10);
     const rec = records.find(r => r.date === gregDate);
     calendarDays.push({ day: d, nepDateStr, gregDate, attendance: rec?.attendance || null });
   }
@@ -876,9 +985,22 @@ async function renderAttendancePage() {
 
 function shiftAttDate(delta) {
   const [y, m, d] = currentAttDate.split('-').map(Number);
-  const nepDate = new NepaliDate(y, m-1, d);
-  nepDate.setDate(nepDate.getDate() + delta);
-  const newNepStr = `${nepDate.getYear()}-${String(nepDate.getMonth()+1).padStart(2,'0')}-${String(nepDate.getDate()).padStart(2,'0')}`;
+  let newDay = d + delta;
+  let newMonth = m;
+  let newYear = y;
+  const daysInMonth = BS_DAYS_IN_MONTH[m-1];
+  
+  if (newDay > daysInMonth) {
+    newDay = 1;
+    newMonth++;
+    if (newMonth > 12) { newMonth = 1; newYear++; }
+  } else if (newDay < 1) {
+    newMonth--;
+    if (newMonth < 1) { newMonth = 12; newYear--; }
+    newDay = BS_DAYS_IN_MONTH[newMonth-1];
+  }
+  
+  const newNepStr = `${newYear}-${String(newMonth).padStart(2,'0')}-${String(newDay).padStart(2,'0')}`;
   const todayNep = todayNepaliStr();
   if (newNepStr > todayNep) return; // cannot go to future
   currentAttDate = newNepStr;
