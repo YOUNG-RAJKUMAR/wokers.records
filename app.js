@@ -464,7 +464,7 @@ function renderWorkersGrid(list) {
 }
 
 /* ══════════════════════════════════════════
-   13. WORKER MODAL (Add / Edit)
+   13. WORKER MODAL (Add / Edit) — SIMPLIFIED
 ══════════════════════════════════════════ */
 function openWorkerModal(worker = null) {
   const isEdit = !!worker;
@@ -474,82 +474,41 @@ function openWorkerModal(worker = null) {
                  "Welder","Supervisor","Driver","Security","Foreman","Other"];
 
   document.getElementById("modal-body").innerHTML = `
-    <div class="section-title">Personal Information</div>
-
     <div class="form-group">
       <label class="form-label">Full Name *</label>
-      <input class="form-input" id="f-name" placeholder="Worker's full name (any language)" value="${esc(worker?.name)}">
-    </div>
-    <div class="form-row">
-      <div class="form-group">
-        <label class="form-label">Phone Number</label>
-        <input class="form-input" id="f-phone" type="tel" placeholder="98XXXXXXXX" value="${esc(worker?.phone)}">
-      </div>
-      <div class="form-group">
-        <label class="form-label">NID / Citizenship No.</label>
-        <input class="form-input" id="f-nid" placeholder="National ID number" value="${esc(worker?.nid)}">
-      </div>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Address</label>
-      <input class="form-input" id="f-address" placeholder="Full address" value="${esc(worker?.address)}">
+      <input class="form-input" id="f-name" placeholder="Worker's full name" value="${esc(worker?.name)}">
     </div>
 
-    <div class="section-title">Work Details</div>
     <div class="form-row">
       <div class="form-group">
-        <label class="form-label">Job Role / Position</label>
+        <label class="form-label">Job Role</label>
         <select class="form-select" id="f-role">
           ${roles.map(r => `<option value="${r}"${worker?.role === r ? " selected" : ""}>${r}</option>`).join("")}
         </select>
       </div>
       <div class="form-group">
-        <label class="form-label">Join Date</label>
-        <input class="form-input" id="f-joinDate" type="date" value="${worker?.joinDate || todayStr()}">
+        <label class="form-label">Phone (optional)</label>
+        <input class="form-input" id="f-phone" type="tel" placeholder="98XXXXXXXX" value="${esc(worker?.phone)}">
       </div>
     </div>
+
     <div class="form-row">
       <div class="form-group">
         <label class="form-label">Wage Rate (per day)</label>
         <input class="form-input" id="f-wageRate" type="number" min="0" placeholder="e.g. 800" value="${worker?.wageRate || ""}">
       </div>
       <div class="form-group">
-        <label class="form-label">Status</label>
-        <select class="form-select" id="f-status">
-          <option value="active"  ${worker?.status !== "inactive" ? "selected" : ""}>Active</option>
-          <option value="inactive"${worker?.status === "inactive" ? "selected" : ""}>Inactive</option>
-        </select>
+        <label class="form-label">Join Date</label>
+        <input class="form-input" id="f-joinDate" type="date" value="${worker?.joinDate || todayStr()}">
       </div>
     </div>
 
-    <div class="section-title">Emergency Contact</div>
-    <div class="form-row">
-      <div class="form-group">
-        <label class="form-label">Contact Name</label>
-        <input class="form-input" id="f-eName"  placeholder="Emergency contact name" value="${esc(worker?.emergencyName)}">
-      </div>
-      <div class="form-group">
-        <label class="form-label">Contact Phone</label>
-        <input class="form-input" id="f-ePhone" type="tel" placeholder="Phone number" value="${esc(worker?.emergencyPhone)}">
-      </div>
-    </div>
     <div class="form-group">
-      <label class="form-label">Relation to Worker</label>
-      <input class="form-input" id="f-eRelation" placeholder="e.g. Wife, Father, Brother" value="${esc(worker?.emergencyRelation)}">
-    </div>
-
-    <div class="section-title">Additional</div>
-    <div class="form-group">
-      <label class="form-label">Blood Group</label>
-      <select class="form-select" id="f-blood">
-        ${["—","A+","A−","B+","B−","AB+","AB−","O+","O−"].map(b =>
-          `<option value="${b}"${worker?.bloodGroup === b ? " selected" : ""}>${b}</option>`
-        ).join("")}
+      <label class="form-label">Status</label>
+      <select class="form-select" id="f-status">
+        <option value="active"  ${worker?.status !== "inactive" ? "selected" : ""}>Active</option>
+        <option value="inactive"${worker?.status === "inactive" ? "selected" : ""}>Inactive</option>
       </select>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Notes / Remarks</label>
-      <textarea class="form-textarea" id="f-notes" placeholder="Any additional notes…">${esc(worker?.notes)}</textarea>
     </div>
   `;
 
@@ -559,18 +518,11 @@ function openWorkerModal(worker = null) {
 
     const data = {
       name,
-      phone:             document.getElementById("f-phone").value.trim(),
-      nid:               document.getElementById("f-nid").value.trim(),
-      address:           document.getElementById("f-address").value.trim(),
-      role:              document.getElementById("f-role").value,
-      joinDate:          document.getElementById("f-joinDate").value,
-      wageRate:          Number(document.getElementById("f-wageRate").value) || 0,
-      status:            document.getElementById("f-status").value,
-      emergencyName:     document.getElementById("f-eName").value.trim(),
-      emergencyPhone:    document.getElementById("f-ePhone").value.trim(),
-      emergencyRelation: document.getElementById("f-eRelation").value.trim(),
-      bloodGroup:        document.getElementById("f-blood").value,
-      notes:             document.getElementById("f-notes").value.trim(),
+      role:       document.getElementById("f-role").value,
+      phone:      document.getElementById("f-phone").value.trim(),
+      wageRate:   Number(document.getElementById("f-wageRate").value) || 0,
+      joinDate:   document.getElementById("f-joinDate").value,
+      status:     document.getElementById("f-status").value,
     };
 
     try {
